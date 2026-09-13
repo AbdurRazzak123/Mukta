@@ -573,7 +573,7 @@ for a in articles:
     # Media reliability layer also runs on detail pages so a repository move
     # (for example Banglasangbad -> Mukta) cannot break article images.
     if not s.find('script', src=re.compile(r'\.\./news-media\.js')):
-        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v4', defer=True)
+        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v5', defer=True)
         s.body.append(media_script)
 
     out = BUILD / (sid + '.html')

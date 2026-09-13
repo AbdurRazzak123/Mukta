@@ -1376,41 +1376,46 @@ function parseSheet(text){
 }
 function load(){return fetch(DATA_URL+'?_='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Data HTTP '+r.status);return r.text()}).then(parseSheet);}
 const IMAGE_REPO='./assets/news/';
+function repoImageBase(){
+  const host=String(location.hostname||'').toLowerCase();
+  if(host.endsWith('.github.io')){
+    const parts=location.pathname.split('/').filter(Boolean);
+    const repo=parts[0]||'';
+    const owner=host.split('.')[0];
+    if(owner&&repo) return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/main/assets/news/`;
+  }
+  return '';
+}
 function imageUrl(url){
   const raw=String(url||'').trim(); if(!raw)return '';
-  // Google Drive share/file/open/download/thumbnail links -> direct thumbnail endpoint.
   const m=raw.match(/drive\.google\.com\/(?:file\/d\/|open\?(?:[^#]*&)?id=|uc\?(?:[^#]*&)?id=|thumbnail\?(?:[^#]*&)?id=)([A-Za-z0-9_-]+)/i);
   if(m)return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w2000`;
-  // Already absolute HTTPS/HTTP image URL: keep it unchanged.
   if(/^https?:\/\//i.test(raw))return raw;
-  // All synced repository images use GitHub RAW as the primary, page-independent path.
-  // This prevents /repo-name/relative-path mistakes on GitHub Pages category pages.
   const path=raw.replace(/^\.\//,'').replace(/^\/+/, '');
   if(/^(?:assets\/news|news-media|news-images|images\/news)\//i.test(path)){
-    return './assets/news/' + path.split('/').map(encodeURIComponent).pop();
+    const name=path.split('/').pop();
+    const rawBase=repoImageBase();
+    return rawBase ? rawBase+encodeURIComponent(name) : './assets/news/'+encodeURIComponent(name);
   }
-  // Other relative assets remain relative to the current page.
-  try{return new URL(path, document.baseURI).href;}catch(e){return raw;}
+  try{return new URL(path,document.baseURI).href;}catch(e){return raw;}
 }
 function imageFallback(img){
-  if(img.dataset.fallbackDone==='1')return;
-  img.dataset.fallbackDone='1';
-  const original=img.dataset.imageSource || img.getAttribute('src') || '';
-  // First fallback: repository RAW path, independent of the current Pages URL.
-  try{
-    const raw=String(original).trim();
-    const clean=raw.replace(/^\.\//,'').replace(/^\/+/, '');
-    if(/^(?:assets\/news|news-media|news-images|images\/news)\//i.test(clean)){
-      img.src='./assets/news/' + clean.split('/').map(encodeURIComponent).pop();
-      return;
-    }
-  }catch(e){}
-  // Second fallback: if the source is a Drive link, retry as a thumbnail.
-  try{
-    const m=String(original).match(/drive\.google\.com\/(?:file\/d\/|open\?(?:[^#]*&)?id=|uc\?(?:[^#]*&)?id=|thumbnail\?(?:[^#]*&)?id=)([A-Za-z0-9_-]+)/i);
-    if(m){img.src=`https://drive.google.com/thumbnail?id=${m[1]}&sz=w2000`;return;}
-  }catch(e){}
-  img.style.display='none';
+  if(img.dataset.fallbackIndex==='done')return;
+  const original=String(img.dataset.imageSource||img.getAttribute('src')||'').trim();
+  const list=[];
+  const dm=original.match(/drive\.google\.com\/(?:file\/d\/|open\?(?:[^#]*&)?id=|uc\?(?:[^#]*&)?id=|thumbnail\?(?:[^#]*&)?id=)([A-Za-z0-9_-]+)/i);
+  if(dm) list.push(`https://drive.google.com/thumbnail?id=${dm[1]}&sz=w2000`);
+  const clean=original.replace(/^\.\//,'').replace(/^\/+/, '');
+  if(/^(?:assets\/news|news-media|news-images|images\/news)\//i.test(clean)){
+    const name=clean.split('/').pop();
+    const rawBase=repoImageBase();
+    if(rawBase) list.push(rawBase+encodeURIComponent(name));
+    list.push('./assets/news/'+encodeURIComponent(name));
+  }
+  list.push(original);
+  const next=list.find(x=>x && x!==img.currentSrc && x!==img.src);
+  if(next){img.dataset.imageSource=original;img.src=next;img.dataset.fallbackIndex='1';return;}
+  img.dataset.fallbackIndex='done';
 }
 function isCategory(n){const c=norm(n.category);return CATEGORY_VALUES.some(v=>norm(v)===c);}
 function latest(list){return [...list].reverse();}
@@ -1524,6 +1529,6 @@ load().then(async list=>{
 
 <footer class="site-footer"><h3>বাংলা সংবাদ</h3><p>সর্বশেষ সংবাদ সবার আগে</p><div class="links"><a href="about.html">আমাদের সম্পর্কে</a><a href="contact.html">যোগাযোগ</a><a href="privacy.html">গোপনীয়তা নীতি</a><a href="disclaimer.html">দাবিত্যাগ</a></div><p>© ২০২৬ বাংলা সংবাদ — সর্বস্বত্ব সংরক্ষিত</p><a href="advertise.html">বিজ্ঞাপন দিন</a></footer>
 <script src="ads-loader.js?v=20260907-ads-v26-sequential-final"></script>
-<script src="news-media.js?v=20260913-media-universal-v4"></script>
+<script src="news-media.js?v=20260913-media-universal-v5"></script>
 <script src="news-reader.js"></script>
 <script src="site-search.js" defer></script></body>

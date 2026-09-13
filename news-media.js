@@ -7,7 +7,7 @@
 */
 (function(){
   'use strict';
-  const VERSION='20260913-media-universal-v4';
+  const VERSION='20260913-media-universal-v5';
   const TRANSPARENT='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
   function repoBase(){
@@ -66,13 +66,14 @@
     const out=[];
     if(/^(?:assets\/news|news-media|news-images|images\/news)\//i.test(clean)){
       if(name){
-        const rb=repoBase();
-        out.push(rb+'assets/news/'+encodeURIComponent(name));
         const owner=githubOwner(), repo=repoName();
+        // GitHub RAW first: this avoids intermittent Pages/relative-path image failures.
         if(owner&&repo){
           out.push(`https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/main/assets/news/${encodeURIComponent(name)}`);
           out.push(`https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/master/assets/news/${encodeURIComponent(name)}`);
         }
+        const rb=repoBase();
+        out.push(rb+'assets/news/'+encodeURIComponent(name));
         // Page-relative fallbacks for local/offline copies.
         out.push(clean.startsWith('assets/') ? './'+clean : '../'+clean);
         out.push(new URL(clean,document.baseURI).href);
@@ -106,8 +107,15 @@
     let i=0;
     const current=img.getAttribute('src')||'';
     const preferred=list[0];
-    // Always normalize local/Drive sources immediately. This is important when
-    // the original 404 happened before the error listener was attached.
+    // Attach the error listener BEFORE changing src, so even an immediate
+    // failure cannot escape the fallback chain.
+    img.addEventListener('error',function(){
+      let n=Number(img.dataset.mediaIndex||0)+1;
+      while(n<list.length && list[n]===img.currentSrc)n++;
+      if(n<list.length){img.dataset.mediaIndex=String(n);img.src=list[n];}
+      else {img.classList.add('image-load-failed');}
+    });
+    // Always normalize local/Drive sources immediately.
     if(!current || current===TRANSPARENT || !current.includes('drive.google.com/thumbnail')){
       if(driveCandidates(source).length || /^(?:assets\/news|news-media|news-images|images\/news)\//i.test(source)){
         img.src=preferred;
@@ -121,13 +129,6 @@
       const same=list.findIndex(x=>x===current); i=same>=0?same:0;
     }
     img.dataset.mediaIndex=String(i);
-
-    img.addEventListener('error',function(){
-      let n=Number(img.dataset.mediaIndex||0)+1;
-      while(n<list.length && list[n]===img.currentSrc)n++;
-      if(n<list.length){img.dataset.mediaIndex=String(n);img.src=list[n];}
-      else {img.classList.add('image-load-failed');}
-    });
   }
   function scan(root){
     const scope=root&&root.querySelectorAll?root:document;
