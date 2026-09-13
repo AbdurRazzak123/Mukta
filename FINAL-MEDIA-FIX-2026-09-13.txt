@@ -1,0 +1,13 @@
+FINAL MEDIA FIX — 13-09-2026
+
+1. Google Drive images: Drive File ID is detected from common share/open/uc/thumbnail URLs.
+2. Primary web image route: Google Drive thumbnail?id=FILE_ID&sz=w2000.
+3. Fallbacks: lh3.googleusercontent.com, uc?export=view, uc?export=download.
+4. Local repository images use only a relative repository path; no guessed raw.githubusercontent.com URL is generated.
+5. Removed the previous undefined/guessed REPO_RAW-style dependency from the reliability layer.
+6. The same media layer is used by home, category, more and news detail pages.
+7. Optional image-2 and image-3 are rendered only when their Sheet fields contain a value.
+8. Details page keeps its search below the navigation and keeps the header date visible.
+9. Google Drive images must be shared as Anyone with the link / Viewer for public visitors.
+
+Important: Google Drive is a storage/sharing source, not a guaranteed permanent image CDN. The thumbnail endpoint is used as the primary browser route because Google's previous uc embedding route has had compatibility changes.
