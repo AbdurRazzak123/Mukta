@@ -556,6 +556,12 @@ for a in articles:
     for sc in list(s.find_all('script')):
         if not sc.get('src') and sc.get('type') != 'application/ld+json' and sc.get('id') != 'detail-live-date-script':
             sc.decompose()
+    # Put the search bar directly in the HTML so it remains visible even if JS is delayed.
+    if s.body and not s.select_one('.bs-global-search-wrap'):
+        nav=s.select_one('nav.nav')
+        if nav:
+            nav.insert_after(BeautifulSoup('''<div class="bs-global-search-wrap static-search-bar"><div class="bs-global-search" role="search"><input id="bs-global-search-input" type="search" placeholder="নিউজ খুঁজুন..." aria-label="নিউজ খুঁজুন"><button id="bs-global-search-btn" type="button">সার্চ</button><div id="bs-global-search-results" class="bs-global-search-results"></div></div></div>''','html.parser'))
+
     # Detail pages use the exact same global search script as category/home pages.
     # The body base marker makes result links resolve to ../news/<id>.html.
     if s.body:
@@ -563,7 +569,7 @@ for a in articles:
     for sc in list(s.find_all('script', src=True)):
         if 'site-search.js' in str(sc.get('src')):
             sc.decompose()
-    search_script = s.new_tag('script', src='../site-search.js?v=20260913-search-v4', defer=True)
+    search_script = s.new_tag('script', src='../site-search.js?v=20260913-search-v5', defer=True)
     s.body.append(search_script)
 
     # Shared share tools are injected into every generated detail page.
@@ -573,7 +579,7 @@ for a in articles:
     # Media reliability layer also runs on detail pages so a repository move
     # (for example Banglasangbad -> Mukta) cannot break article images.
     if not s.find('script', src=re.compile(r'\.\./news-media\.js')):
-        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v5', defer=True)
+        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v6', defer=True)
         s.body.append(media_script)
 
     out = BUILD / (sid + '.html')
@@ -625,6 +631,9 @@ for cp in [ROOT / n for n in ('national.html','politics.html','international.htm
     marker="const requestedNewsId = normId(new URLSearchParams(location.search).get('news') || '');"
     if marker in txt:
         txt=txt.replace(marker, marker+"\nif(requestedNewsId){location.replace('news/'+encodeURIComponent(requestedNewsId)+'.html');}")
+    if 'class="bs-global-search-wrap' not in txt:
+        txt=txt.replace('</nav>', '''</nav><div class="bs-global-search-wrap static-search-bar"><div class="bs-global-search" role="search"><input id="bs-global-search-input" type="search" placeholder="নিউজ খুঁজুন..." aria-label="নিউজ খুঁজুন"><button id="bs-global-search-btn" type="button">সার্চ</button><div id="bs-global-search-results" class="bs-global-search-results"></div></div></div>''', 1)
+    txt=txt.replace('<body>', '<body data-site-base="./">', 1) if '<body data-site-base=' not in txt else txt
     if 'site-search.js' not in txt:
         txt=txt.replace('</body>', '<script src="site-search.js" defer></script></body>')
     cp.write_text(txt,encoding='utf-8')
