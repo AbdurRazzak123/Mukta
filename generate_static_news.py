@@ -500,7 +500,7 @@ for a in articles:
     im = article_image(a, 0)
     if im:
         wrap = s.new_tag('div', **{'class': 'news-image-top article-full-image'})
-        tag = s.new_tag('img', src=image_src_for_news_page(im), alt=a['title'], loading='eager', **{'data-image-source':im})
+        tag = s.new_tag('img', src=image_src_for_news_page(im), alt=a['title'], loading='eager', **{'data-image-source':im, 'data-sheet-image-slot':'1'})
         wrap.append(tag); article.append(wrap)
     text = s.new_tag('div', **{'class': 'news-text-bottom'})
     cat = s.new_tag('span', **{'class': 'category-tag'}); cat.string = a.get('category', 'সংবাদ'); text.append(cat)
@@ -648,3 +648,16 @@ for name in ('home.html','index.html','more.html','about.html','contact.html','p
 
 print(f'Generated {len(articles)} static Home-style news pages.')
 print(f'Site base: {BASE or "relative URLs (GitHub Actions will set the repo URL)"}')
+
+# Ensure every generated HTML page loads the live Google Sheet image synchronizer.
+for _html in ROOT.rglob('*.html'):
+    try:
+        _txt=_html.read_text(encoding='utf-8')
+        if 'sheet-image-loader.js' in _txt:
+            continue
+        _rel='../sheet-image-loader.js' if _html.parent.name=='news' else 'sheet-image-loader.js'
+        if '</body>' in _txt:
+            _txt=_txt.replace('</body>', f'<script src="{_rel}?v=20260913-sheet-image-v1"></script>\n</body>')
+            _html.write_text(_txt, encoding='utf-8')
+    except Exception:
+        pass

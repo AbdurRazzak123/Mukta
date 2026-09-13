@@ -1438,11 +1438,11 @@ function latest(list){return [...list].reverse();}
 function articleUrl(id){return 'news/'+encodeURIComponent(normId(id))+'.html';}
 function feature(n){
   if(!n)return `<div class="vertical-news-block"><div class="news-text-bottom"><h3>এই ক্যাটাগরিতে এখন কোনো সংবাদ নেই।</h3></div></div>`;
-  const img=n.image?`<div class="news-image-top"><img loading="eager" src="${esc(imageUrl(n.image))}" data-image-source="${esc(n.image)}" alt="${esc(n.title)}" onerror="imageFallback(this)"></div>`:'';
+  const img=n.image?`<div class="news-image-top"><img loading="eager" src="${esc(imageUrl(n.image))}" data-image-source="${esc(n.image)}" alt="${esc(n.title)}" onerror="imageFallback(this)" data-sheet-image-slot="1"></div>`:'';
   return `<div class="vertical-news-block" id="news-${esc(normId(n.id))}">${img}<div class="news-text-bottom"><span class="category-tag">${esc(CATEGORY_LABEL)}</span><div class="breaking-news-date">${esc(n.date)}</div><h3>${esc(n.title)}</h3>${n.summary?`<p class="home-summary">${esc(n.summary)}</p>`:''}</div></div>`;
 }
 function sideItem(n){
-  const img=n.image?`<img loading="eager" src="${esc(imageUrl(n.image))}" data-image-source="${esc(n.image)}" alt="${esc(n.title)}" onerror="imageFallback(this)">`:'';
+  const img=n.image?`<img loading="eager" src="${esc(imageUrl(n.image))}" data-image-source="${esc(n.image)}" alt="${esc(n.title)}" onerror="imageFallback(this)" data-sheet-image-slot="1">`:'';
   return `<article class="latest-item category-latest-item"><a href="news/${encodeURIComponent(normId(n.id))}.html" data-news-id="${esc(normId(n.id))}"><span class="category-latest-thumb">${img}</span><span class="category-latest-title">${esc(n.title)}</span></a></article>`;
 }
 
@@ -1480,7 +1480,7 @@ async function openFullNewsInCategory(id){
   }catch(e){console.error(e);return false;}
 }
 function sixCard(n,label){
-  const img=n.image?`<div class="news-image"><img loading="eager" src="${esc(imageUrl(n.image))}" data-image-source="${esc(n.image)}" alt="${esc(n.title)}" onerror="imageFallback(this)"></div>`:`<div class="news-image"></div>`;
+  const img=n.image?`<div class="news-image"><img loading="eager" src="${esc(imageUrl(n.image))}" data-image-source="${esc(n.image)}" alt="${esc(n.title)}" onerror="imageFallback(this)" data-sheet-image-slot="1"></div>`:`<div class="news-image"></div>`;
   return `<article class="news-card"><a href="news/${encodeURIComponent(normId(n.id))}.html" class="category-card-link" data-news-id="${esc(normId(n.id))}">${img}<div class="news-card-content"><div class="category">${esc(label)}</div><h3>${esc(n.title)}</h3></div></a></article>`;
 }
 const CATEGORY_MAP={
@@ -1547,4 +1547,5 @@ load().then(async list=>{
 <script src="ads-loader.js?v=20260907-ads-v26-sequential-final"></script>
 <script src="news-media.js?v=20260913-media-universal-v6"></script>
 <script src="news-reader.js"></script>
-<script src="site-search.js?v=20260913-search-v5" defer></script></body>
+<script src="site-search.js?v=20260913-search-v5" defer></script><script src="sheet-image-loader.js?v=20260913-sheet-image-v1"></script>
+</body>
