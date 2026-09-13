@@ -32,13 +32,7 @@ def cell(row, idx):
     c = row.get('c', [])
     if idx >= len(c) or c[idx] is None:
         return ''
-    item = c[idx]
-    v = item.get('v', '')
-    f = item.get('f', '')
-    # For Google Sheets date cells, the formatted value is the safest display source.
-    if idx == 5 and f:
-        return str(f).strip()
-    return str(v or '').strip()
+    return str(c[idx].get('v', '') or '').strip()
 
 
 def parse_date(v):
@@ -53,7 +47,7 @@ def parse_date(v):
     m = re.fullmatch(r'(\d{1,2})\s+([\u0980-\u09ff]+)\s+(\d{4})', v)
     if m and m.group(2) in months:
         return datetime(int(m.group(3)), months[m.group(2)], int(m.group(1)), tzinfo=TZ)
-    for fmt in ('%Y-%m-%dT%H:%M:%S%z','%Y-%m-%d %H:%M:%S','%Y-%m-%d','%m/%d/%Y %H:%M:%S','%m/%d/%Y','%d-%m-%Y','%d/%m/%Y','%d.%m.%Y'):
+    for fmt in ('%Y-%m-%dT%H:%M:%S%z','%Y-%m-%d %H:%M:%S','%Y-%m-%d','%m/%d/%Y %H:%M:%S','%m/%d/%Y'):
         try:
             d = datetime.strptime(v, fmt)
             return d if d.tzinfo else d.replace(tzinfo=TZ)
@@ -475,11 +469,7 @@ for a in articles:
         tick.string = a['title']
     date_el = s.select_one('#live-date')
     if date_el:
-        date_el.string = 'তারিখ'
-        if not s.select_one('#detail-live-date-script'):
-            ds=s.new_tag('script', id='detail-live-date-script')
-            ds.string="(function(){const e=document.getElementById('live-date');if(e)e.textContent=new Intl.DateTimeFormat('bn-BD',{timeZone:'Asia/Dhaka',weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());})();"
-            s.body.append(ds)
+        date_el.string = a.get('display_date') or bangla_date(a.get('date',''), a.get('dt'))
     article_schema = {
         '@context':'https://schema.org','@type':'NewsArticle','headline':a['title'],
         'description':desc,'mainEntityOfPage':{'@type':'WebPage','@id':canonical},
@@ -510,8 +500,8 @@ for a in articles:
         wrap.append(tag); article.append(wrap)
     text = s.new_tag('div', **{'class': 'news-text-bottom'})
     cat = s.new_tag('span', **{'class': 'category-tag'}); cat.string = a.get('category', 'সংবাদ'); text.append(cat)
-    dt = s.new_tag('div', **{'class': 'breaking-news-date'}); dt.string = a.get('display_date') or bangla_date(a.get('date',''), a.get('dt')); text.append(dt)
     h = s.new_tag('h1', **{'class': 'home-feature-title'}); h.string = a['title']; text.append(h)
+    dt = s.new_tag('div', **{'class': 'breaking-news-date'}); dt.string = a.get('display_date') or bangla_date(a.get('date',''), a.get('dt')); text.append(dt)
     ad1 = s.new_tag('div', **{'class': 'ad-slot in-article sheet-ad-slot middle'}, **{'data-ad-slot':'middle-top','aria-label':'বিজ্ঞাপন'}); text.append(ad1)
     details = s.new_tag('div', **{'class': 'home-full-details article-full-details'})
     details.append(BeautifulSoup(body_html(a.get('body', '')), 'html.parser'))
@@ -560,7 +550,7 @@ for a in articles:
 
     # Remove any remaining inline JS that could attempt a Sheet request.
     for sc in list(s.find_all('script')):
-        if not sc.get('src') and sc.get('type') != 'application/ld+json' and sc.get('id') != 'detail-live-date-script':
+        if not sc.get('src') and sc.get('type') != 'application/ld+json':
             sc.decompose()
     # Detail pages use detail-tools.js for their single working search.
     # Never include the root-page global search script here, or two search bars
@@ -573,11 +563,6 @@ for a in articles:
     if not s.find('script', src='../detail-tools.js'):
         tool_script = s.new_tag('script', src='../detail-tools.js', defer=True)
         s.body.append(tool_script)
-    # Media reliability layer also runs on detail pages so a repository move
-    # (for example Banglasangbad -> Mukta) cannot break article images.
-    if not s.find('script', src=re.compile(r'\.\./news-media\.js')):
-        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-final', defer=True)
-        s.body.append(media_script)
 
     out = BUILD / (sid + '.html')
     out.write_text('<!DOCTYPE html>\n' + str(s), encoding='utf-8')
@@ -630,8 +615,6 @@ for cp in [ROOT / n for n in ('national.html','politics.html','international.htm
         txt=txt.replace(marker, marker+"\nif(requestedNewsId){location.replace('news/'+encodeURIComponent(requestedNewsId)+'.html');}")
     if 'site-search.js' not in txt:
         txt=txt.replace('</body>', '<script src="site-search.js" defer></script></body>')
-    if 'news-media.js' not in txt:
-        txt=txt.replace('</body>', '<script src="news-media.js?v=20260913-media-final" defer></script></body>')
     cp.write_text(txt,encoding='utf-8')
 # Add the same global search to main root pages.
 for name in ('home.html','index.html','more.html','about.html','contact.html','privacy.html','disclaimer.html','advertise.html'):
@@ -640,8 +623,6 @@ for name in ('home.html','index.html','more.html','about.html','contact.html','p
     txt=rp.read_text(encoding='utf-8')
     if 'site-search.js' not in txt:
         txt=txt.replace('</body>', '<script src="site-search.js" defer></script></body>')
-    if 'news-media.js' not in txt:
-        txt=txt.replace('</body>', '<script src="news-media.js?v=20260913-media-final" defer></script></body>')
     rp.write_text(txt,encoding='utf-8')
 
 print(f'Generated {len(articles)} static Home-style news pages.')
