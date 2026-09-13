@@ -556,21 +556,24 @@ for a in articles:
     for sc in list(s.find_all('script')):
         if not sc.get('src') and sc.get('type') != 'application/ld+json' and sc.get('id') != 'detail-live-date-script':
             sc.decompose()
-    # Detail pages use detail-tools.js for their single working search.
-    # Never include the root-page global search script here, or two search bars
-    # will be injected and the relative result paths will conflict.
+    # Detail pages use the exact same global search script as category/home pages.
+    # The body base marker makes result links resolve to ../news/<id>.html.
+    if s.body:
+        s.body['data-site-base']='../'
     for sc in list(s.find_all('script', src=True)):
         if 'site-search.js' in str(sc.get('src')):
             sc.decompose()
+    search_script = s.new_tag('script', src='../site-search.js?v=20260913-search-v4', defer=True)
+    s.body.append(search_script)
 
-    # Shared search + social/share tools are injected into every generated detail page.
-    if not s.find('script', src='../detail-tools.js'):
-        tool_script = s.new_tag('script', src='../detail-tools.js', defer=True)
+    # Shared share tools are injected into every generated detail page.
+    if not s.find('script', src='../detail-tools.js?v=20260913-share-v4'):
+        tool_script = s.new_tag('script', src='../detail-tools.js?v=20260913-share-v4', defer=True)
         s.body.append(tool_script)
     # Media reliability layer also runs on detail pages so a repository move
     # (for example Banglasangbad -> Mukta) cannot break article images.
     if not s.find('script', src=re.compile(r'\.\./news-media\.js')):
-        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v3', defer=True)
+        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v4', defer=True)
         s.body.append(media_script)
 
     out = BUILD / (sid + '.html')
