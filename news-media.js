@@ -1,109 +1,132 @@
-/* বাংলা সংবাদ — FINAL media reliability layer
-   One image pipeline for Home / Category / More / Detail pages.
-   Supports Google Drive share URLs, Drive thumbnail URLs, local repository paths,
-   and ordinary HTTPS image URLs.  Optional image-2/image-3 are untouched unless present.
+/* বাংলা সংবাদ — FINAL universal image loader
+   Google Sheet -> Drive/local image -> article/category pages.
+   Drive images must be shared so the public page can read them.
 */
 (function(){
   'use strict';
-  if(window.__BanglaSongbadMediaFinalLoaded)return;
-  window.__BanglaSongbadMediaFinalLoaded=true;
 
-  const isNewsPage=/\/news\//i.test(location.pathname);
-  const ROOT_BASE=isNewsPage?'../':'./';
+  const VERSION = '20260913-media-universal-v3';
 
   function driveId(raw){
-    const s=String(raw||'').trim();
-    const patterns=[
+    const s = String(raw || '').trim();
+    const patterns = [
       /drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/i,
       /drive\.google\.com\/open\?(?:[^#]*&)?id=([A-Za-z0-9_-]+)/i,
-      /drive\.google\.com\/(?:uc|thumbnail)\?(?:[^#]*&)?id=([A-Za-z0-9_-]+)/i,
-      /drive\.google\.com\/drive\/u\/\d+\/folders\/([A-Za-z0-9_-]+)/i
+      /drive\.google\.com\/uc\?(?:[^#]*&)?id=([A-Za-z0-9_-]+)/i,
+      /drive\.google\.com\/thumbnail\?(?:[^#]*&)?id=([A-Za-z0-9_-]+)/i,
+      /drive\.usercontent\.google\.com\/[^?#]*\?(?:[^#]*&)?id=([A-Za-z0-9_-]+)/i,
+      /(?:^|[?&])id=([A-Za-z0-9_-]{10,})(?:[&#]|$)/i
     ];
-    for(const p of patterns){const m=s.match(p);if(m&&m[1])return m[1];}
+    for(const p of patterns){ const m=s.match(p); if(m) return m[1]; }
     return '';
   }
 
-  // Google Drive's thumbnail endpoint is the primary web-image route.
-  // The older uc?export=view/download routes are fallbacks only.
   function driveCandidates(raw){
-    const id=driveId(raw); if(!id)return [];
+    const id = driveId(raw);
+    if(!id) return [];
     return [
-      `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w2000`,
-      `https://lh3.googleusercontent.com/d/${encodeURIComponent(id)}=w2000`,
-      `https://drive.google.com/uc?export=view&id=${encodeURIComponent(id)}`,
-      `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`
+      // Primary route requested for this project.
+      `https://drive.google.com/thumbnail?id=${id}&sz=w2000`,
+      // Googleusercontent route is a useful secondary route when thumbnail is blocked.
+      `https://lh3.googleusercontent.com/d/${id}=w2000`,
+      // Drive's user-content download endpoint.
+      `https://drive.usercontent.google.com/download?id=${id}&export=view&confirm=t`,
+      // Older Drive routes kept only as fallbacks.
+      `https://drive.google.com/uc?export=view&id=${id}`,
+      `https://drive.google.com/uc?export=download&id=${id}`
     ];
   }
 
+  function isRemote(s){ return /^(?:https?:|data:|blob:)/i.test(String(s||'')); }
+
   function localCandidates(raw){
-    const s=String(raw||'').trim().replace(/^\.\//,'').replace(/^\/+/,'');
-    if(!s||/^https?:\/\//i.test(s)||/^data:/i.test(s)||/^blob:/i.test(s))return [];
-    // Do not construct a guessed raw.githubusercontent.com URL.  The previous
-    // version depended on an undefined/guessed repository branch and could fail.
-    return [ROOT_BASE+s];
+    const s = String(raw || '').trim();
+    if(!s || isRemote(s)) return [];
+    const clean = s.replace(/^\.\//,'').replace(/^\//,'');
+    if(!clean) return [];
+    const encoded = clean.split('/').map(encodeURIComponent).join('/');
+    const prefix = location.pathname.includes('/news/') ? '../' : './';
+    return [prefix + encoded];
   }
 
   function candidates(img){
-    const source=img.dataset.imageSource||img.getAttribute('src')||'';
-    const out=[];
-    const did=driveId(source);
-    if(did)out.push(...driveCandidates(source));
-    else if(/^https?:\/\//i.test(source))out.push(source);
+    const source = img.dataset.imageSource || img.getAttribute('src') || '';
+    const out = [];
+    // If the Sheet contains a Drive URL, try Drive first.
+    out.push(...driveCandidates(source));
+    // Then the exact remote URL, if it is not a Drive link.
+    if(isRemote(source) && !driveCandidates(source).length) out.push(source);
+    // Local repository image fallback.
     out.push(...localCandidates(source));
+    // Finally resolve any relative URL exactly as the browser would.
     try{
-      const absolute=new URL(source,document.baseURI).href;
-      if(!out.includes(absolute))out.push(absolute);
+      const abs = new URL(source, document.baseURI).href;
+      if(!out.includes(abs)) out.push(abs);
     }catch(e){}
     return [...new Set(out.filter(Boolean))];
   }
 
-  function attach(img){
-    if(!img||img.dataset.mediaReliability==='1')return;
-    img.dataset.mediaReliability='1';
-    if(!img.dataset.imageSource)img.dataset.imageSource=img.getAttribute('src')||'';
-    const list=candidates(img);
-    img.dataset.mediaCandidates=JSON.stringify(list);
-    img.dataset.mediaStep='0';
+  function mark(img){
+    if(!img || img.dataset.mediaUniversal === '1') return;
+    img.dataset.mediaUniversal = '1';
+    if(!img.dataset.imageSource) img.dataset.imageSource = img.getAttribute('src') || '';
 
-    const original=img.getAttribute('src')||'';
-    const did=driveId(img.dataset.imageSource||'');
-    // For Drive sources, deliberately start with thumbnail endpoint.
-    if(did && list.length && original!==list[0]){
-      img.src=list[0];
-      img.dataset.mediaStep='1';
-    }
+    const list = candidates(img);
+    img.dataset.mediaCandidates = JSON.stringify(list);
+    if(!list.length) return;
 
-    img.addEventListener('error',function(){
-      let arr=[];
-      try{arr=JSON.parse(img.dataset.mediaCandidates||'[]')}catch(e){arr=[]}
-      let i=Number(img.dataset.mediaStep||0);
-      const current=img.currentSrc||img.src||'';
-      while(i<arr.length && arr[i]===current)i++;
-      if(i<arr.length){
-        img.dataset.mediaStep=String(i+1);
-        img.src=arr[i];
-        return;
+    const current = img.getAttribute('src') || '';
+    let index = list.indexOf(current);
+    if(index < 0) index = 0;
+    img.dataset.mediaIndex = String(index);
+
+    img.addEventListener('error', function(){
+      let i = Number(img.dataset.mediaIndex || 0) + 1;
+      while(i < list.length && list[i] === img.src) i++;
+      if(i < list.length){
+        img.dataset.mediaIndex = String(i);
+        img.src = list[i];
+      } else {
+        img.classList.add('image-load-failed');
       }
-      img.classList.add('image-load-failed');
     });
+
+    // If the initial source is empty, start the candidate chain immediately.
+    if(!current){
+      img.src = list[0];
+    }
   }
 
-  function scan(root=document){
-    if(!root||!root.querySelectorAll)return;
-    root.querySelectorAll('img').forEach(attach);
-    if(root.tagName==='IMG')attach(root);
+  function scan(root){
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('img').forEach(mark);
+    if(root && root.tagName === 'IMG') mark(root);
+  }
+
+  function addStyle(){
+    if(document.getElementById('media-universal-style')) return;
+    const style = document.createElement('style');
+    style.id = 'media-universal-style';
+    style.textContent = `
+      .image-load-failed{background:#f1f1f1;min-height:120px;object-fit:contain!important;}
+      .article-extra-image img,.article-full-image img{max-width:100%;height:auto;}
+    `;
+    document.head.appendChild(style);
   }
 
   function run(){
-    const style=document.createElement('style');
-    style.id='media-reliability-final-style';
-    style.textContent='.image-load-failed{background:#f1f1f1;min-height:120px;object-fit:contain!important}.article-extra-image img,.article-full-image img{max-width:100%;height:auto;display:block}';
-    if(!document.getElementById(style.id))document.head.appendChild(style);
+    addStyle();
     scan(document);
     if(document.body){
-      new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)scan(n)}))).observe(document.body,{childList:true,subtree:true});
+      new MutationObserver(function(mutations){
+        mutations.forEach(function(m){
+          m.addedNodes.forEach(function(n){ if(n.nodeType === 1) scan(n); });
+        });
+      }).observe(document.body,{childList:true,subtree:true});
     }
+    document.documentElement.dataset.mediaLoader = VERSION;
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',run,{once:true});
   else run();
 })();

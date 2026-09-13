@@ -32,13 +32,7 @@ def cell(row, idx):
     c = row.get('c', [])
     if idx >= len(c) or c[idx] is None:
         return ''
-    item = c[idx]
-    v = item.get('v', '')
-    f = item.get('f', '')
-    # For Google Sheets date cells, the formatted value is the safest display source.
-    if idx == 5 and f:
-        return str(f).strip()
-    return str(v or '').strip()
+    return str(c[idx].get('v', '') or '').strip()
 
 
 def parse_date(v):
@@ -53,7 +47,7 @@ def parse_date(v):
     m = re.fullmatch(r'(\d{1,2})\s+([\u0980-\u09ff]+)\s+(\d{4})', v)
     if m and m.group(2) in months:
         return datetime(int(m.group(3)), months[m.group(2)], int(m.group(1)), tzinfo=TZ)
-    for fmt in ('%Y-%m-%dT%H:%M:%S%z','%Y-%m-%d %H:%M:%S','%Y-%m-%d','%m/%d/%Y %H:%M:%S','%m/%d/%Y','%d-%m-%Y','%d/%m/%Y','%d.%m.%Y'):
+    for fmt in ('%Y-%m-%dT%H:%M:%S%z','%Y-%m-%d %H:%M:%S','%Y-%m-%d','%m/%d/%Y %H:%M:%S','%m/%d/%Y'):
         try:
             d = datetime.strptime(v, fmt)
             return d if d.tzinfo else d.replace(tzinfo=TZ)
@@ -95,7 +89,7 @@ def download_drive_image(v, name_prefix):
     target = MEDIA / (name_prefix + '-' + hashlib.sha1(fid.encode()).hexdigest()[:16] + '.jpg')
     if not target.exists():
         last = None
-        for u in (f'https://drive.google.com/thumbnail?id={fid}&sz=w2000', f'https://drive.google.com/uc?export=view&id={fid}'):
+        for u in (f'https://drive.google.com/thumbnail?id={fid}&sz=w2000', f'https://lh3.googleusercontent.com/d/{fid}=w2000', f'https://drive.usercontent.google.com/download?id={fid}&export=view&confirm=t', f'https://drive.google.com/uc?export=view&id={fid}', f'https://drive.google.com/uc?export=download&id={fid}'):
             try:
                 req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
                 with urllib.request.urlopen(req, timeout=30) as r:
@@ -576,7 +570,7 @@ for a in articles:
     # Media reliability layer also runs on detail pages so a repository move
     # (for example Banglasangbad -> Mukta) cannot break article images.
     if not s.find('script', src=re.compile(r'\.\./news-media\.js')):
-        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-final2', defer=True)
+        media_script = s.new_tag('script', src='../news-media.js?v=20260913-media-universal-v3', defer=True)
         s.body.append(media_script)
 
     out = BUILD / (sid + '.html')
@@ -630,8 +624,6 @@ for cp in [ROOT / n for n in ('national.html','politics.html','international.htm
         txt=txt.replace(marker, marker+"\nif(requestedNewsId){location.replace('news/'+encodeURIComponent(requestedNewsId)+'.html');}")
     if 'site-search.js' not in txt:
         txt=txt.replace('</body>', '<script src="site-search.js" defer></script></body>')
-    if 'news-media.js' not in txt:
-        txt=txt.replace('</body>', '<script src="news-media.js?v=20260913-media-final2" defer></script></body>')
     cp.write_text(txt,encoding='utf-8')
 # Add the same global search to main root pages.
 for name in ('home.html','index.html','more.html','about.html','contact.html','privacy.html','disclaimer.html','advertise.html'):
@@ -640,8 +632,6 @@ for name in ('home.html','index.html','more.html','about.html','contact.html','p
     txt=rp.read_text(encoding='utf-8')
     if 'site-search.js' not in txt:
         txt=txt.replace('</body>', '<script src="site-search.js" defer></script></body>')
-    if 'news-media.js' not in txt:
-        txt=txt.replace('</body>', '<script src="news-media.js?v=20260913-media-final2" defer></script></body>')
     rp.write_text(txt,encoding='utf-8')
 
 print(f'Generated {len(articles)} static Home-style news pages.')
