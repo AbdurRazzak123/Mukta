@@ -1,1 +1,83 @@
+name: Auto Publish - Facebook Instagram X YouTube
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'news/*.html'
+      - 'news-data.json'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Test without publishing'
+        required: false
+        default: 'false'
+        type: boolean
+      publish_existing:
+        description: 'Publish all pages already in the repo (normally OFF)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-publish-social
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: python3 -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Generate optional YouTube video(s)
+        if: ${{ vars.AUTO_YOUTUBE_VIDEO == 'true' }}
+        run: |
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-extra >/dev/null
+          # Only generate the newest numeric news page by default. The publisher can still upload an existing MP4.
+          latest=$(find news -maxdepth 1 -name '*.html' -printf '%f\n' | sed 's/\.html$//' | sort -n | tail -1)
+          if [ -n "$latest" ]; then python3 automation/video_generator.py "$latest"; fi
+
+      - name: Allow GitHub Pages time to publish the new static files
+        run: sleep ${{ vars.AUTO_PUBLISH_DELAY_SECONDS || 60 }}
+
+      - name: Auto publish
+        env:
+          SITE_BASE_URL: https://abdurrazzak123.github.io/Banglasangbad/
+          META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION }}
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
+          META_PAGE_ACCESS_TOKEN: ${{ secrets.META_PAGE_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          YOUTUBE_ACCESS_TOKEN: ${{ secrets.YOUTUBE_ACCESS_TOKEN }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_PRIVACY_STATUS: ${{ vars.YOUTUBE_PRIVACY_STATUS }}
+          AUTO_PUBLISH_DELAY_SECONDS: ${{ vars.AUTO_PUBLISH_DELAY_SECONDS }}
+          SOCIAL_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          PUBLISH_EXISTING: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_existing || 'false' }}
+        run: python3 automation/auto_publish.py
+
+      - name: Commit publish state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add social-publish-state.json social-publish-log.json automation/logs || true
+          git add social-publish-state.json social-publish-log.json automation/logs
+          if git diff --cached --quiet; then
+            echo "No state changes."
+          else
+            git commit -m "Track social auto-publish state"
+            git push
+          fi
 
