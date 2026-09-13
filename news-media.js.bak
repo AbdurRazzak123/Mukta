@@ -3,16 +3,8 @@
    This script never requires the browser to talk directly to Google Sheets. */
 (function(){
  'use strict';
- const DATA_URL=(location.pathname.includes('/news/')?'../':'')+'news-data.json';
- function repoRawBase(){
-   const m=location.hostname.match(/^raw\.githubusercontent\.com$/i);
-   const parts=location.pathname.split('/').filter(Boolean);
-   if(location.hostname.endsWith('github.io') && parts.length>=1){
-     const owner=location.hostname.split('.')[0]; const repo=parts[0];
-     return 'https://raw.githubusercontent.com/'+owner+'/'+repo+'/main/';
-   }
-   return '';
- }
+ const DATA_URL='news-data.json';
+ const REPO_RAW='https://raw.githubusercontent.com/abdurrazzak123/banglanews.2026/main/';
  function driveCandidates(raw){
    const m=String(raw||'').match(/drive\.google\.com\/(?:file\/d\/|open\?(?:[^#]*&)?id=|uc\?(?:[^#]*&)?id=|thumbnail\?(?:[^#]*&)?id=)([A-Za-z0-9_-]+)/i);
    if(!m)return [];
@@ -29,7 +21,6 @@
    const out=[...driveCandidates(source)];
    if(/^https?:\/\//i.test(source)&&!out.length)out.push(source);
    const rp=rawPath(source); if(rp)out.push(rp);
-   const base=repoRawBase(); if(base && rp)out.push(base+rp);
    try{out.push(new URL(source,document.baseURI).href)}catch(e){}
    return [...new Set(out.filter(Boolean))];
  }

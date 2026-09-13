@@ -1,6 +1,7 @@
 (function(){
   'use strict';
   if (window.__BanglaSongbadDetailTools) return;
+  if (document.querySelector('.bs-global-search-wrap')) return;
   window.__BanglaSongbadDetailTools = true;
 
   const BASE = '../';
@@ -54,15 +55,14 @@
 
   const header=document.querySelector('.header-inner');
   if(header){
-    header.querySelectorAll('.bs-social-tools, .bs-detail-search-wrap, .bs-search').forEach(el=>el.remove());
-    const tools=document.createElement('div'); tools.className='bs-social-tools bs-detail-search-wrap';
+    const tools=document.createElement('div'); tools.className='bs-social-tools';
     tools.innerHTML=`<div class="bs-search" role="search"><input id="bs-search-input" type="search" placeholder="নিউজ খুঁজুন..." aria-label="নিউজ খুঁজুন"><button id="bs-search-btn" type="button" aria-label="সার্চ">⌕</button><div id="bs-search-results" class="bs-search-results"></div></div>`;
     header.appendChild(tools);
     const input=tools.querySelector('#bs-search-input'), results=tools.querySelector('#bs-search-results');
     let items=[];
     fetch(BASE+'news-data.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{
-      const rows=Array.isArray(data)?data:(data?.table?.rows||[]);
-      items=rows.map(r=>{const c=r.c||[];return {id:c[0]?.v,cat:c[1]?.v||'',title:c[2]?.v||''};}).filter(x=>x.id!==undefined&&x.id!==null&&String(x.id).trim()&&x.title);
+      const rows=data?.table?.rows||[];
+      items=rows.map(r=>{const c=r.c||[];return {id:c[0]?.v,cat:c[1]?.v||'',title:c[2]?.v||''};}).filter(x=>x.id&&x.title);
     }).catch(()=>{});
     function search(){
       const q=input.value.trim().toLowerCase(); results.innerHTML='';
@@ -72,9 +72,7 @@
       found.forEach(x=>{const a=document.createElement('a');a.href=encodeURIComponent(String(x.id))+'.html';a.innerHTML='<strong>'+esc(x.title)+'</strong><br><small>'+esc(x.cat)+'</small>';results.appendChild(a);});
       results.style.display='block';
     }
-    input.addEventListener('input',search);
-    input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search();}});
-    tools.querySelector('#bs-search-btn').addEventListener('click',search);
+    input.addEventListener('input',search); tools.querySelector('#bs-search-btn').addEventListener('click',search);
     document.addEventListener('click',e=>{if(!tools.contains(e.target))results.style.display='none';});
   }
 
