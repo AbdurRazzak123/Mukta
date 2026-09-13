@@ -1,4 +1,6 @@
 (function(){
+  if(window.__BanglaSongbadDetailToolsLoaded)return;
+  window.__BanglaSongbadDetailToolsLoaded=true;
   'use strict';
   if (window.__BanglaSongbadDetailTools) return;
   window.__BanglaSongbadDetailTools = true;
