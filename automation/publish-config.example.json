@@ -1,0 +1,7 @@
+{
+  "site_base_url": "https://abdurrazzak123.github.io/Banglasangbad/",
+  "facebook": {"enabled": true, "requires": ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN"]},
+  "instagram": {"enabled": true, "requires": ["INSTAGRAM_BUSINESS_ACCOUNT_ID", "META_PAGE_ACCESS_TOKEN"]},
+  "x": {"enabled": true, "requires": ["X_ACCESS_TOKEN"]},
+  "youtube": {"enabled": true, "requires": ["YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"], "video_source": "social-video/<NEWS_ID>.mp4"}
+}
