@@ -1,6 +1,7 @@
 (function(){
   'use strict';
   if (window.__BanglaSongbadDetailTools) return;
+  if (document.querySelector('.bs-global-search-wrap')) return;
   window.__BanglaSongbadDetailTools = true;
 
   const BASE = '../';
@@ -20,7 +21,7 @@
     .bs-share{max-width:1200px;margin:0 auto 22px;padding:0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .bs-share-label{font:800 14px/1.4 sans-serif;color:#344054;margin-right:3px}
     .bs-share a,.bs-share button{border:0;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:8px;padding:8px 11px;font:800 13px/1 sans-serif;min-height:34px;box-sizing:border-box}
-    .bs-facebook{background:#1877f2;color:#fff}.bs-twitter{background:#111;color:#fff}.bs-native{background:#0b2d3a;color:#fff}.bs-youtube{background:#ff0033;color:#fff}.bs-instagram{background:#d62976;color:#fff}.bs-whatsapp{background:#25d366;color:#073b1f}.bs-telegram{background:#229ed9;color:#fff}.bs-copy{background:#eef2f6;color:#182230}
+    .bs-facebook{background:#1877f2;color:#fff}.bs-twitter{background:#111;color:#fff}.bs-native{background:#0b2d3a;color:#fff}.bs-youtube{background:#ff0033;color:#fff}.bs-instagram{background:#d62976;color:#fff}.bs-copy{background:#eef2f6;color:#182230}
     .bs-social-links{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
     .bs-social-links a{font:800 12px/1 sans-serif;text-decoration:none;border:1px solid #e2e8f0;border-radius:999px;padding:7px 10px;color:#334155;background:#fff}
     @media(max-width:768px){
@@ -46,8 +47,6 @@
     const links={
       facebook:'https://www.facebook.com/sharer/sharer.php?u='+u,
       twitter:'https://twitter.com/intent/tweet?url='+u+'&text='+t,
-      whatsapp:'https://wa.me/?text='+t+'%20'+u,
-      telegram:'https://t.me/share/url?url='+u+'&text='+t
     };
     if(links[type]) window.open(links[type],'_blank','noopener,noreferrer,width=680,height=620');
     else if(type==='youtube'){copy(); window.open('https://www.youtube.com/','_blank','noopener,noreferrer');}
@@ -70,7 +69,7 @@
       if(!q){results.style.display='none';return;}
       const found=items.filter(x=>(x.title+' '+x.cat).toLowerCase().includes(q)).slice(0,8);
       if(!found.length){results.innerHTML='<div style="padding:12px;font:600 13px sans-serif;color:#667085">কোনো সংবাদ পাওয়া যায়নি</div>';results.style.display='block';return;}
-      found.forEach(x=>{const a=document.createElement('a');a.href='news/'+encodeURIComponent(String(x.id))+'.html';a.innerHTML='<strong>'+esc(x.title)+'</strong><br><small>'+esc(x.cat)+'</small>';results.appendChild(a);});
+      found.forEach(x=>{const a=document.createElement('a');a.href=encodeURIComponent(String(x.id))+'.html';a.innerHTML='<strong>'+esc(x.title)+'</strong><br><small>'+esc(x.cat)+'</small>';results.appendChild(a);});
       results.style.display='block';
     }
     input.addEventListener('input',search); tools.querySelector('#bs-search-btn').addEventListener('click',search);
@@ -83,8 +82,6 @@
     share.innerHTML=`<span class="bs-share-label">শেয়ার করুন:</span>
       <a href="#" class="bs-facebook" aria-label="Facebook-এ শেয়ার করুন">Facebook</a>
       <a href="#" class="bs-twitter" aria-label="Twitter/X-এ শেয়ার করুন">Twitter/X</a>
-      <a href="#" class="bs-whatsapp" aria-label="WhatsApp-এ শেয়ার করুন">WhatsApp</a>
-      <a href="#" class="bs-telegram" aria-label="Telegram-এ শেয়ার করুন">Telegram</a>
       <button class="bs-native" type="button" aria-label="মোবাইলে শেয়ার করুন">📱 শেয়ার</button>
       <a href="#" class="bs-youtube" aria-label="YouTube-এ লিংক শেয়ার/খুলুন">YouTube</a>
       <a href="#" class="bs-instagram" aria-label="Instagram-এ লিংক শেয়ার/খুলুন">Instagram</a>
@@ -95,8 +92,6 @@
     share.querySelector('.bs-native').onclick=e=>{e.preventDefault();nativeShare();};
     share.querySelector('.bs-youtube').onclick=e=>{e.preventDefault();openSocial('youtube');};
     share.querySelector('.bs-instagram').onclick=e=>{e.preventDefault();openSocial('instagram');};
-    share.querySelector('.bs-whatsapp').onclick=e=>{e.preventDefault();openSocial('whatsapp');};
-    share.querySelector('.bs-telegram').onclick=e=>{e.preventDefault();openSocial('telegram');};
     share.querySelector('.bs-copy').onclick=copy;
   }
 })();

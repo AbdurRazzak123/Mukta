@@ -56,6 +56,18 @@ def parse_date(v):
     return None
 
 
+def bangla_date(v, dt=None):
+    """Return a consistent Bengali display date for article pages."""
+    months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর']
+    weekdays = ['সোমবার','মঙ্গলবার','বুধবার','বৃহস্পতিবার','শুক্রবার','শনিবার','রবিবার']
+    d = dt or parse_date(v)
+    if d:
+        bn = str.maketrans('0123456789','০১২৩৪৫৬৭৮৯')
+        return f'{weekdays[d.weekday()]}, {str(d.day).translate(bn)} {months[d.month-1]} {str(d.year).translate(bn)}'
+    raw = str(v or '').strip()
+    return raw.translate(str.maketrans('0123456789','০১২৩৪৫৬৭৮৯'))
+
+
 def slug_id(v):
     raw = str(v).strip()
     m = re.fullmatch(r'(\d+)\.0+', raw)
@@ -143,6 +155,20 @@ def normalize_rows(rows, is_ads=False):
                 original = str(cells[col].get('v', '') or '').strip()
                 if original:
                     cells[col]['v'] = download_drive_image(original, f'{"ad" if is_ads else "news"}-{row_no}-img{col}')
+        # Preserve known local article images when the Sheet temporarily omits
+        # the image cell. This prevents the homepage from losing images while
+        # keeping the Sheet as the primary source whenever an image is supplied.
+        if not is_ads and cells and cells[0] is not None:
+            sid = slug_id(cells[0].get('v', ''))
+            if sid and sid != 'article':
+                while len(cells) <= 4: cells.append(None)
+                current = str(cells[4].get('v', '') if cells[4] else '').strip()
+                if not current:
+                    for ext in ('.jpeg', '.jpg', '.png', '.webp'):
+                        candidate = ROOT / 'assets' / 'news' / f'{sid}-1{ext}'
+                        if candidate.exists():
+                            cells[4] = {'v': f'assets/news/{candidate.name}'}
+                            break
     return rows
 
 
@@ -443,7 +469,7 @@ for a in articles:
         tick.string = a['title']
     date_el = s.select_one('#live-date')
     if date_el:
-        date_el.string = a.get('date', '') or ''
+        date_el.string = a.get('display_date') or bangla_date(a.get('date',''), a.get('dt'))
     article_schema = {
         '@context':'https://schema.org','@type':'NewsArticle','headline':a['title'],
         'description':desc,'mainEntityOfPage':{'@type':'WebPage','@id':canonical},
@@ -470,12 +496,12 @@ for a in articles:
     im = article_image(a, 0)
     if im:
         wrap = s.new_tag('div', **{'class': 'news-image-top article-full-image'})
-        tag = s.new_tag('img', src=image_src_for_news_page(im), alt=a['title'], loading='eager')
+        tag = s.new_tag('img', src=image_src_for_news_page(im), alt=a['title'], loading='eager', **{'data-image-source':im})
         wrap.append(tag); article.append(wrap)
     text = s.new_tag('div', **{'class': 'news-text-bottom'})
     cat = s.new_tag('span', **{'class': 'category-tag'}); cat.string = a.get('category', 'সংবাদ'); text.append(cat)
-    dt = s.new_tag('div', **{'class': 'breaking-news-date'}); dt.string = a.get('date', ''); text.append(dt)
     h = s.new_tag('h1', **{'class': 'home-feature-title'}); h.string = a['title']; text.append(h)
+    dt = s.new_tag('div', **{'class': 'breaking-news-date'}); dt.string = a.get('display_date') or bangla_date(a.get('date',''), a.get('dt')); text.append(dt)
     ad1 = s.new_tag('div', **{'class': 'ad-slot in-article sheet-ad-slot middle'}, **{'data-ad-slot':'middle-top','aria-label':'বিজ্ঞাপন'}); text.append(ad1)
     details = s.new_tag('div', **{'class': 'home-full-details article-full-details'})
     details.append(BeautifulSoup(body_html(a.get('body', '')), 'html.parser'))
@@ -483,7 +509,7 @@ for a in articles:
         ex = article_image(a, idx)
         if ex:
             fig = s.new_tag('figure', **{'class':'article-extra-image'})
-            eim = s.new_tag('img', src=image_src_for_news_page(ex), alt=a['title'] + ' - ছবি ' + str(idx + 1), loading='lazy')
+            eim = s.new_tag('img', src=image_src_for_news_page(ex), alt=a['title'] + ' - ছবি ' + str(idx + 1), loading='lazy', **{'data-image-source':ex})
             fig.append(eim); details.append(fig)
     vh = video_html(a.get('video', ''), a['title'])
     if vh:
@@ -501,7 +527,7 @@ for a in articles:
         th = s.new_tag('span', **{'class':'category-latest-thumb'})
         xim = article_image(x, 0)
         if xim:
-            xi = s.new_tag('img', src=image_src_for_news_page(xim), alt=x['title'], loading='lazy'); th.append(xi)
+            xi = s.new_tag('img', src=image_src_for_news_page(xim), alt=x['title'], loading='lazy', **{'data-image-source':xim}); th.append(xi)
         tt = s.new_tag('span', **{'class':'category-latest-title'}); tt.string = x['title']
         link.append(th); link.append(tt); art.append(link); lst.append(art)
     aside.append(lst); main.append(aside)
@@ -515,7 +541,7 @@ for a in articles:
             box = s.new_tag('div', **{'class':'news-image'})
             xim = article_image(x, 0)
             if xim:
-                xi = s.new_tag('img', src=image_src_for_news_page(xim), alt=x['title'], loading='lazy'); box.append(xi)
+                xi = s.new_tag('img', src=image_src_for_news_page(xim), alt=x['title'], loading='lazy', **{'data-image-source':xim}); box.append(xi)
             link.append(box)
             cc = s.new_tag('div', **{'class':'news-card-content'})
             lab = s.new_tag('div', **{'class':'category'}); lab.string = label
@@ -525,6 +551,12 @@ for a in articles:
     # Remove any remaining inline JS that could attempt a Sheet request.
     for sc in list(s.find_all('script')):
         if not sc.get('src') and sc.get('type') != 'application/ld+json':
+            sc.decompose()
+    # Detail pages use detail-tools.js for their single working search.
+    # Never include the root-page global search script here, or two search bars
+    # will be injected and the relative result paths will conflict.
+    for sc in list(s.find_all('script', src=True)):
+        if 'site-search.js' in str(sc.get('src')):
             sc.decompose()
 
     # Shared search + social/share tools are injected into every generated detail page.
